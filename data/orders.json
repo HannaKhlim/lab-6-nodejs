@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "createdAt": "2026-11-18T11:59:56.666Z",
+    "customer": "Guest",
+    "items": [
+      {
+        "productId": 4,
+        "name": "Nuptse 700 Jacket",
+        "brand": "The North Face",
+        "size": "XL",
+        "price": 330,
+        "quantity": 1,
+        "subtotal": 330
+      }
+    ],
+    "total": 330
+  }
+]

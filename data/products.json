@@ -1,0 +1,65 @@
+[
+  {
+    "id": 2,
+    "name": "Box Logo T-Shirt",
+    "brand": "Supreme",
+    "category": "Clothing",
+    "size": "M",
+    "price": 180,
+    "stock": 8
+  },
+  {
+    "id": 3,
+    "name": "501 Original Jeans",
+    "brand": "Levi's",
+    "category": "Clothing",
+    "size": "32/32",
+    "price": 110,
+    "stock": 12
+  },
+  {
+    "id": 4,
+    "name": "Nuptse 700 Jacket",
+    "brand": "The North Face",
+    "category": "Clothing",
+    "size": "XL",
+    "price": 330,
+    "stock": 2
+  },
+  {
+    "id": 5,
+    "name": "Air Force 1 Sneakers",
+    "brand": "Nike",
+    "category": "Footwear",
+    "size": "42",
+    "price": 120,
+    "stock": 10
+  },
+  {
+    "id": 6,
+    "name": "Samba OG Sneakers",
+    "brand": "Adidas",
+    "category": "Footwear",
+    "size": "43",
+    "price": 100,
+    "stock": 7
+  },
+  {
+    "id": 7,
+    "name": "Cassette Belt",
+    "brand": "Saint Laurent",
+    "category": "Accessories",
+    "size": "90",
+    "price": 490,
+    "stock": 4
+  },
+  {
+    "id": 8,
+    "name": "9FORTY Cap",
+    "brand": "New Era",
+    "category": "Accessories",
+    "size": "ONE SIZE",
+    "price": 40,
+    "stock": 20
+  }
+]

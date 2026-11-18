@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEEPMAG - Designer Clothing Store</title>
+<style>
+  :root { --bg:#f5f5f3; --fg:#111; --muted:#666; --card:#fff; --line:#ddd; --accent:#111; --danger:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--fg); }
+  header { background:var(--accent); color:#fff; padding:18px 30px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; letter-spacing:4px; font-size:24px; }
+  main { max-width:1200px; margin:0 auto; padding:20px; display:grid; grid-template-columns: 1fr 340px; gap:20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:20px; }
+  h2 { margin:0 0 12px; font-size:18px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  input, select, button { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; }
+  button { background:var(--accent); color:#fff; border-color:var(--accent); cursor:pointer; }
+  button.secondary { background:#fff; color:var(--fg); border-color:var(--fg); }
+  button.danger { background:#fff; color:var(--danger); border-color:var(--danger); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .card .brand { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .card .name { font-weight:bold; }
+  .card .meta { font-size:13px; color:var(--muted); }
+  .card .price { font-size:18px; font-weight:bold; }
+  .card .actions { display:flex; gap:6px; margin-top:auto; }
+  .card .actions button { flex:1; padding:6px; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .stats p { margin:4px 0; }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:10px 18px; border-radius:6px; display:none; z-index:10; }
+  #toast.error { background:var(--danger); }
+  .empty { color:var(--muted); font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DEEPMAG</h1>
+  <span>Designer clothing, footwear, accessories</span>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>Catalog</h2>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="Search by name or brand">
+        <select id="categoryFilter">
+          <option value="">All categories</option>
+          <option>Clothing</option>
+          <option>Footwear</option>
+          <option>Accessories</option>
+        </select>
+      </div>
+      <div id="products" class="grid"></div>
+    </section>
+
+    <section>
+      <h2>Add product</h2>
+      <form id="addForm" class="form-grid" novalidate>
+        <input name="name" placeholder="Name" class="full">
+        <input name="brand" placeholder="Brand">
+        <select name="category">
+          <option>Clothing</option>
+          <option>Footwear</option>
+          <option>Accessories</option>
+        </select>
+        <input name="size" placeholder="Size (M, 42, ONE SIZE)">
+        <input name="price" type="number" min="1" step="1" placeholder="Price, $">
+        <input name="stock" type="number" min="0" step="1" placeholder="Stock">
+        <button type="submit">Add product</button>
+      </form>
+    </section>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Cart</h2>
+      <div id="cart"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button id="checkoutBtn">Place order</button>
+        <button id="clearBtn" class="secondary">Clear</button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <h2>Catalog statistics</h2>
+      <div id="stats"></div>
+      <h2 style="margin-top:16px">Download catalog</h2>
+      <div class="toolbar">
+        <button class="secondary" data-format="json">JSON</button>
+        <button class="secondary" data-format="xml">XML</button>
+        <button class="secondary" data-format="html">HTML</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const money = (n) => '$' + Number(n).toLocaleString('en-US');
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function toast(msg, isError = false) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error' : '';
+    t.style.display = 'block';
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => (t.style.display = 'none'), 2800);
+  }
+
+  async function api(url, options = {}) {
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      ...options,
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error((data && data.error) || `Error ${res.status}`);
+    return data;
+  }
+
+  const run = async (fn) => {
+    try { await fn(); } catch (e) { toast(e.message, true); }
+  };
+
+  async function loadProducts() {
+    const params = new URLSearchParams();
+    if ($('search').value.trim()) params.set('q', $('search').value.trim());
+    if ($('categoryFilter').value) params.set('category', $('categoryFilter').value);
+    const products = await api('/api/products?' + params);
+
+    $('products').innerHTML = products.length
+      ? products.map((p) => `
+        <div class="card">
+          <span class="brand">${esc(p.brand)}</span>
+          <span class="name">${esc(p.name)}</span>
+          <span class="meta">${esc(p.category)} · size ${esc(p.size)}</span>
+          <span class="meta">In stock: ${p.stock}</span>
+          <span class="price">${money(p.price)}</span>
+          <div class="actions">
+            <button data-buy="${p.id}" ${p.stock === 0 ? 'disabled' : ''}>Buy</button>
+            <button class="danger" data-del="${p.id}">Delete</button>
+          </div>
+        </div>`).join('')
+      : '<p class="empty">No products found</p>';
+  }
+
+  function renderCart(cart) {
+    $('cart').innerHTML = cart.items.length
+      ? `<table>
+          <tr><th>Product</th><th>Qty</th><th>Subtotal</th><th></th></tr>
+          ${cart.items.map((i) => `
+            <tr>
+              <td>${esc(i.name)}<br><small>${esc(i.brand)}, ${esc(i.size)}</small></td>
+              <td>${i.quantity}</td>
+              <td>${money(i.subtotal)}</td>
+              <td><button class="danger" data-remove="${i.productId}">✕</button></td>
+            </tr>`).join('')}
+        </table>
+        <p><b>Total: ${money(cart.total)}</b></p>`
+      : '<p class="empty">Cart is empty</p>';
+    $('checkoutBtn').disabled = $('clearBtn').disabled = cart.items.length === 0;
+  }
+  const loadCart = async () => renderCart(await api('/api/cart'));
+
+  async function loadStats() {
+    const { stats } = await api('/api/catalog');
+    $('stats').innerHTML = `
+      <p>Items: <b>${stats.totalProducts}</b></p>
+      <p>Units in stock: <b>${stats.totalStock}</b></p>
+      <p>Stock value: <b>${money(stats.totalValue)}</b></p>
+      <table>
+        <tr><th>Brand</th><th>Items</th><th>Stock</th></tr>
+        ${stats.byBrand.map((b) => `<tr><td>${esc(b.brand)}</td><td>${b.count}</td><td>${b.stock}</td></tr>`).join('')}
+      </table>`;
+  }
+
+  const refreshAll = () => Promise.all([loadProducts(), loadCart(), loadStats()]);
+
+  $('products').addEventListener('click', (e) => run(async () => {
+    const buy = e.target.dataset.buy;
+    const del = e.target.dataset.del;
+    if (buy) {
+      const cart = await api('/api/cart', { method: 'POST', body: JSON.stringify({ productId: Number(buy), quantity: 1 }) });
+      renderCart(cart);
+      toast('Product added to cart');
+    } else if (del) {
+      if (!confirm('Delete this product from the catalog?')) return;
+      const r = await api('/api/products/' + del, { method: 'DELETE' });
+      toast(r.message);
+      await refreshAll();
+    }
+  }));
+
+  $('cart').addEventListener('click', (e) => run(async () => {
+    const id = e.target.dataset.remove;
+    if (!id) return;
+    renderCart(await api('/api/cart/' + id, { method: 'DELETE' }));
+    toast('Product removed from cart');
+  }));
+
+  $('clearBtn').addEventListener('click', () => run(async () => {
+    renderCart(await api('/api/cart', { method: 'DELETE' }));
+    toast('Cart cleared');
+  }));
+
+  $('checkoutBtn').addEventListener('click', () => run(async () => {
+    const r = await api('/api/checkout', { method: 'POST', body: JSON.stringify({ customer: 'Guest' }) });
+    toast(`${r.message} #${r.order.id}, total ${money(r.order.total)}`);
+    await refreshAll();
+  }));
+
+  $('addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    run(async () => {
+      const body = Object.fromEntries(new FormData(e.target).entries());
+      const r = await api('/api/products', { method: 'POST', body: JSON.stringify(body) });
+      toast(r.message);
+      e.target.reset();
+      await refreshAll();
+    });
+  });
+
+  let searchTimer;
+  $('search').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => run(loadProducts), 250);
+  });
+  $('categoryFilter').addEventListener('change', () => run(loadProducts));
+
+  const MIME = { json: 'application/json', xml: 'application/xml', html: 'text/html' };
+  document.querySelectorAll('[data-format]').forEach((btn) =>
+    btn.addEventListener('click', () => run(async () => {
+      const format = btn.dataset.format;
+      const res = await fetch('/api/catalog', { headers: { Accept: MIME[format] } });
+      if (!res.ok) throw new Error('Could not get the file (' + res.status + ')');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `deepmag-catalog.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      toast('File ' + a.download + ' downloaded');
+    }))
+  );
+
+  run(refreshAll);
+</script>
+</body>
+</html>
